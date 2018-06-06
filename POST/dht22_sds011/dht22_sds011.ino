@@ -15,8 +15,7 @@ const char* ssid     = "Minhyuk Nam의 iPhone";
 const char* password = "ak4kh2sd2aun";
 /*const char* ssid     = "MMlab1001";
 const char* password = "mpeglab10";*/
-const char* host = "api.thingspeak.com";
-String apiKey = "PXH67NH5X3KGRNKW"; // https://thingspeak.com/channels/491786
+const char* host = "ec2-13-209-35-182.ap-northeast-2.compute.amazonaws.com";
 
 float p10,p25;
 int error;
@@ -34,7 +33,6 @@ ESP8266WebServer server(80);
 WiFiClient client;
 SDS011 sds;
 
-//Correction algorythm thanks to help of Zbyszek Kiliański (Krakow Zdroj)
 float normalizePM25(float pm25, float humidity){
   return pm25/(1.0+0.48756*pow((humidity/100.0), 8.60068));
 }
@@ -59,44 +57,45 @@ void setup() {
   connectToWiFi();
 }
 
-byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79}; 
-char response[9];
-
 void loop() {
   Air airData = readPolution();
-  //client.connect(host,80);
-  if (client.connect(host,80) & airData.pm25 > 0.0) {
-    mySerial.write(cmd,9);
-    mySerial.readBytes(response, 9);
-    int responseHigh = (int) response[2];
-    int responseLow = (int) response[3];
-    int ppm = (256*responseHigh)+responseLow;
-    // Serial.println("CO2="+ String(ppm));
-    
-    String postStr = apiKey;
-    postStr +="&field5=";
-    postStr += String(airData.pm25);
-    postStr +="&field4=";
-    postStr += String(airData.pm10); 
-    postStr +="&field8=";
-    postStr += String(airData.humidity);
-    postStr +="&field7=";
+  if (client.connect(host,8000) & airData.pm25 > 0.0) {
+    String postStr = "/api/room/K501";
+    postStr +="/temp/";
     postStr += String(airData.temperature);
-    postStr +="&field6=";
-    postStr += String(ppm);
-    postStr += "\r\n\r\n";
-  
-    client.print("POST /update HTTP/1.1\n");
-    client.print("Host: api.thingspeak.com\n");
+    postStr += "/humidity/";
+    postStr += String(airData.humidity);
+    postStr += "/co2/null";
+    postStr += "/dust/";
+    postStr += String(airData.pm10); 
+    //postStr += "\r\n\r\n";
+
+    Serial.println(String("POST ")+postStr+" HTTP/1.1\n");
+    
+    client.print("POST "+postStr+" HTTP/1.1\n");
+    client.print("Host: ec2-13-209-35-182.ap-northeast-2.compute.amazonaws.com\n");
     client.print("Connection: close\n");
-    client.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n");
+    //client.print("X-THINGSPEAKAPIKEY: "+apiKey+"\n");
     client.print("Content-Type: application/x-www-form-urlencoded\n");
-    client.print("Content-Length: ");
-    client.print(postStr.length());
+    client.print("Content-Length: 0");
+    //client.print(postStr.length());
     client.print("\n\n");
-    client.print(postStr);
+    //client.print(postStr);
+    
+    /*client.print(String("GET /api")+postStr + " HTTP/1.1\r\n" +
+              "Host: " + host + "\r\n" + 
+              "Connection: close\r\n\r\n");*/
   }
   client.stop();
+
+  while(client.available()){
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+  
+  Serial.println();
+  Serial.println("closing connection");
+  
   delay(5000); 
   
   server.handleClient();

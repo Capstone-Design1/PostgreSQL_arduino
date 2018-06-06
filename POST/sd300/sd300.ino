@@ -7,9 +7,7 @@
 const char* ssid     = "Minhyuk Nam의 iPhone";
 const char* password = "ak4kh2sd2aun";
 
-const char* host = "api.thingspeak.com";
-const char* streamId   = "....................";
-const char* privateKey = "3HZ2DSXIIY26FCKB"; /*** 수정필요 ****/
+const char* host = "ec2-13-209-35-182.ap-northeast-2.compute.amazonaws.com";
 
 class Co2 {
   public:
@@ -80,20 +78,27 @@ void loop() {
   if (x!=0){
     
   WiFiClient client;
-  const int httpPort = 80;
+  const int httpPort = 8000;
   if (!client.connect(host, httpPort)) {
     Serial.println("connection failed");
     return;
   }
 
-  String getStr = "GET /update?api_key=";
-  getStr += privateKey;
-  getStr += "&field1=";
-  getStr += String(x);
+  String postStr = "/api/room/K501";
+    postStr +="/temp/null";
+    postStr += "/humidity/null";
+    postStr += "/co2/";
+    postStr += String(x);
+    postStr += "/dust/null";
 
-  client.print(getStr + " HTTP/1.1\r\n" +
-              "Host: " + host + "\r\n" + 
-              "Connection: close\r\n\r\n");
+  Serial.println(String("POST ")+postStr+" HTTP/1.1\n");
+    
+    client.print("POST "+postStr+" HTTP/1.1\n");
+    client.print("Host: ec2-13-209-35-182.ap-northeast-2.compute.amazonaws.com\n");
+    client.print("Connection: close\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: 0");
+    client.print("\n\n");
 
   unsigned long timeout = millis();
   while (client.available() == 0) {
